@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Waste Classification</title>
+
+    <link rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+
+        <h1>♻️ AI Waste Classification</h1>
+        <p class="subtitle">
+            Identify waste using Artificial Intelligence
+        </p>
+        
+        <div class="card">
+
+            <h2>Upload or Capture Waste Image</h2>
+
+            <!-- Image upload form -->
+            <form id="wasteForm"
+                action="/predict"
+                method="POST"
+                enctype="multipart/form-data">
+
+                <label for="image" class="upload-box" id="uploadBox">
+                    <span id="uploadIcon">📁</span>
+                    <strong id="uploadText">Drag and drop your waste image here, or click to upload</strong>
+                    <small id="uploadHint">JPG, JPEG or PNG</small>
+                    <img id="preview"
+                    alt="Selected waste image preview"
+                    style="display:none; max-width:100%;
+                            max-height:300px; margin:20px auto;
+                            border-radius:12px;">
+                </label>
+                <input
+                type="file"
+                id="image"
+                name="image"
+                accept="image/*"
+                required
+                style="display: none;"
+                >
+
+            </form>
+<div class="upload-options">
+    <label for="image" class="option-button upload-button">
+        <span>⇧</span> Upload
+    </label>
+
+    <div class="camera-buttons">
+        <button type="button" id="startCamera"
+                class="option-button camera-button">
+            📷 Camera
+        </button>
+
+        <button type="button" id="takePhoto" style="display:none;">
+            Take Photo
+        </button>
+    </div>
+</div>
+
+<canvas id="canvas" style="display:none;"></canvas>
+<p id="cameraMessage" role="status"></p>
+
+<video id="camera"
+    autoplay
+    playsinline
+    style="display:none; width:100%;
+            max-width:400px; border-radius:12px;">
+</video>
+
+<!-- Analyze button below both sections -->
+<div class="analyze-button-container">
+    <button type="submit" form="wasteForm">
+    🔍 Analyze Waste
+    </button>
+</div>
+
+            <hr>
+            <!-- Prediction result -->
+            {% if prediction %}
+            <div class="result">
+                <h2>Prediction Result</h2>
+
+                <p class="prediction">
+                    {{ prediction | title }}
+                </p>
+
+                <p>
+                    Confidence:
+                    <strong>{{ confidence }}%</strong>
+                </p>
+
+                <h3>Recommended Action</h3>
+
+                <p>
+                    {% if prediction == 'cardboard' %}
+                        Keep cardboard clean and dry, then place it
+                        in the appropriate paper recycling stream.
+                    {% elif prediction == 'glass' %}
+                        Place glass in the appropriate glass
+                        recycling stream, following local guidelines.
+                    {% elif prediction == 'metal' %}
+                        Separate metal from general waste and recycle
+                        it where accepted.
+                    {% elif prediction == 'paper' %}
+                        Keep paper clean and dry and recycle it
+                        where accepted.
+                    {% elif prediction == 'plastic' %}
+                        Check the item's recycling label and local
+                        rules before placing it in plastic recycling.
+                    {% else %}
+                        Check local waste guidelines for safe
+                        disposal of this item.
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
+
+            {% if error %}
+            <div class="error" role="alert">
+                {{ error }}
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+    <script>
+        const imageInput = document.getElementById("image");
+        const preview = document.getElementById("preview");
+        const camera = document.getElementById("camera");
+        const canvas = document.getElementById("canvas");
+        const startCamera = document.getElementById("startCamera");
+        const takePhoto = document.getElementById("takePhoto");
+        const cameraMessage = document.getElementById("cameraMessage");
+
+        let cameraStream = null;
+
+        // Preview an uploaded image
+        imageInput.addEventListener("change", function () {
+            const file = this.files[0];
+
+            if (file) {
+                preview.src = URL.createObjectURL(file);
+                preview.style.display = "block";
+                cameraMessage.textContent =
+                    "Image selected. Click Analyze Waste to predict.";
+            }
+        });
+
+        // Open the device camera
+        startCamera.addEventListener("click", async function () {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment" },
+                    audio: false
+                });
+
+                camera.srcObject = cameraStream;
+                camera.style.display = "block";
+                takePhoto.style.display = "inline-block";
+                cameraMessage.textContent =
+                    "Camera is ready. Take a photo when you are ready.";
+            } catch (error) {
+                cameraMessage.textContent =
+                    "Could not open camera. Allow camera permission or use image upload.";
+            }
+        });
+
+        // Capture a photo and place it in the upload input
+        takePhoto.addEventListener("click", function () {
+            if (!camera.videoWidth) {
+                cameraMessage.textContent =
+                    "Please wait for the camera to start.";
+                return;
+            }
+
+            canvas.width = camera.videoWidth;
+            canvas.height = camera.videoHeight;
+
+            canvas.getContext("2d").drawImage(
+                camera, 0, 0, canvas.width, canvas.height
+            );
+
+            canvas.toBlob(function (blob) {
+                if (!blob) {
+                    cameraMessage.textContent =
+                        "Could not capture photo. Please try again.";
+                    return;
+                }
+
+                const photo = new File([blob], "camera-photo.jpg", {
+                    type: "image/jpeg"
+                });
+
+                const transfer = new DataTransfer();
+                transfer.items.add(photo);
+                imageInput.files = transfer.files;
+
+                preview.src = URL.createObjectURL(blob);
+                preview.style.display = "block";
+
+                cameraMessage.textContent =
+                    "Photo captured. Click Analyze Waste to predict.";
+
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                    cameraStream = null;
+                }
+
+                camera.style.display = "none";
+                takePhoto.style.display = "none";
+            }, "image/jpeg", 0.9);
+        });
+
+        // Stop camera when leaving the page
+        window.addEventListener("pagehide", function () {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

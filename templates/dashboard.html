@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waste Classification Dashboard</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px;
+            font-family: Arial, sans-serif;
+            background: #f2f5f3;
+            color: #243329;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .total {
+            background: #2e7d32;
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 25px 0;
+        }
+
+        .total h2 {
+            margin: 0 0 10px;
+        }
+
+        .total p {
+            font-size: 36px;
+            margin: 0;
+            font-weight: bold;
+        }
+
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+        }
+
+        .category {
+            background: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 12px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        .category h3 {
+            text-transform: capitalize;
+            margin-top: 0;
+        }
+
+        .count {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 25px;
+        }
+
+        .logout {
+            display: block;
+            width: fit-content;
+            margin: 25px auto;
+            background: #2e7d32;
+            color: white;
+            padding: 12px 20px;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Waste Classification Dashboard</h1>
+
+        <div class="total">
+            <h2>Total Predictions</h2>
+            <p>{{ total_predictions }}</p>
+        </div>
+
+        <div class="categories">
+            {% for category in categories %}
+            <div class="category">
+                <h3>{{ category }}</h3>
+                <p class="count">
+                    {{ counts.get(category, 0) }}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="chart-container">
+            <h2>Predictions by Category</h2>
+            <canvas id="predictionChart"></canvas>
+        </div>
+
+        <a class="logout" href="{{ url_for('home') }}">
+            Back to Classifier
+        </a>
+    </div>
+
+    <script>
+        const categoryLabels = {{ categories | tojson }};
+        const predictionCounts = {{ category_counts | tojson }};
+
+        new Chart(document.getElementById("predictionChart"), {
+            type: "bar",
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    label: "Number of Predictions",
+                    data: predictionCounts,
+                    backgroundColor: "#2e7d32"
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
